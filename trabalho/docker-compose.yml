@@ -1,0 +1,100 @@
+name: ocorrencias
+
+# Cluster Apache Cassandra com 3 nos + container da aplicacao (Python).
+# Os nos sobem UM DE CADA VEZ (depends_on: service_healthy) porque o
+# Cassandra exige bootstrap sequencial dos seeds/nos.
+
+x-cassandra-env: &cassandra-env
+  CASSANDRA_CLUSTER_NAME: "OcorrenciasCluster"
+  CASSANDRA_SEEDS: "cassandra1"
+  CASSANDRA_ENDPOINT_SNITCH: "SimpleSnitch"
+  # Heap limitado para caber em um laptop comum (3 nos sao pesados por padrao).
+  MAX_HEAP_SIZE: "512M"
+  HEAP_NEWSIZE: "128M"
+
+x-cassandra-healthcheck: &cassandra-healthcheck
+  # Considera o no saudavel quando o CQL ja aceita conexoes.
+  test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces' || exit 1"]
+  interval: 20s
+  timeout: 10s
+  retries: 20
+  start_period: 90s
+
+services:
+  cassandra1:
+    image: cassandra:5.0
+    container_name: cassandra1
+    hostname: cassandra1
+    environment:
+      <<: *cassandra-env
+    ports:
+      - "9042:9042"        # acesso opcional a partir do host
+    volumes:
+      - cassandra1-data:/var/lib/cassandra
+    networks:
+      - ocorrencias-net
+    healthcheck:
+      <<: *cassandra-healthcheck
+
+  cassandra2:
+    image: cassandra:5.0
+    container_name: cassandra2
+    hostname: cassandra2
+    environment:
+      <<: *cassandra-env
+    volumes:
+      - cassandra2-data:/var/lib/cassandra
+    networks:
+      - ocorrencias-net
+    depends_on:
+      cassandra1:
+        condition: service_healthy
+    healthcheck:
+      <<: *cassandra-healthcheck
+
+  cassandra3:
+    image: cassandra:5.0
+    container_name: cassandra3
+    hostname: cassandra3
+    environment:
+      <<: *cassandra-env
+    volumes:
+      - cassandra3-data:/var/lib/cassandra
+    networks:
+      - ocorrencias-net
+    depends_on:
+      cassandra2:
+        condition: service_healthy
+    healthcheck:
+      <<: *cassandra-healthcheck
+
+  app:
+    build: ./app
+    container_name: ocorrencias-app
+    environment:
+      # A app tenta os 3 nos; basta um disponivel para conectar ao cluster.
+      CASSANDRA_HOSTS: "cassandra1,cassandra2,cassandra3"
+      CASSANDRA_KEYSPACE: "ocorrencias"
+    volumes:
+      - ./app:/app          # codigo montado para facilitar ajustes sem rebuild
+    networks:
+      - ocorrencias-net
+    depends_on:
+      cassandra1:
+        condition: service_healthy
+      cassandra2:
+        condition: service_healthy
+      cassandra3:
+        condition: service_healthy
+    # Mantem o container vivo e ocioso; use `docker compose exec app ...`
+    # para rodar o seed e o menu interativo.
+    command: ["tail", "-f", "/dev/null"]
+
+networks:
+  ocorrencias-net:
+    driver: bridge
+
+volumes:
+  cassandra1-data:
+  cassandra2-data:
+  cassandra3-data:
