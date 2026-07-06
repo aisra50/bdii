@@ -29,7 +29,7 @@ DESCRICOES = {
 # Tabelas a limpar no --reset (inclui as counter).
 TABELAS = [
     "eventos_por_id", "eventos_por_tipo", "eventos_por_periodo",
-    "eventos_por_gravidade", "eventos_por_cidade",
+    "eventos_por_gravidade", "eventos_por_bairro",
     "contagem_por_tipo", "contagem_por_bairro", "contagem_por_dia",
 ]
 

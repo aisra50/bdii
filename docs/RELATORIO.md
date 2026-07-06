@@ -61,7 +61,7 @@ primária define a **partição** (distribuição/lookup) e a **ordenação** (c
 | `eventos_por_tipo` | `tipo` | `data_hora DESC, id_evento` | **6.2** listar por tipo |
 | `eventos_por_periodo` | `bucket_mes` `'YYYY-MM'` | `data_hora ASC, id_evento` | **6.3** intervalo de datas |
 | `eventos_por_gravidade` | `gravidade` (1–5) | `data_hora DESC, id_evento` | **6.5** gravidade alta |
-| `eventos_por_cidade` | `cidade` | `data_hora DESC, id_evento` | **6.4** candidatos p/ filtro geográfico |
+| `eventos_por_bairro` | `bairro` | `data_hora DESC, id_evento` | **6.4** candidatos p/ filtro geográfico |
 | `contagem_por_tipo` | `tipo` | — (`total counter`) | **6.6** total por tipo |
 | `contagem_por_bairro` | `cidade` | `bairro` (`total counter`) | **6.6** total por bairro |
 | `contagem_por_dia` | `ano` | `dia` (`total counter`) | **6.6** evolução temporal |
@@ -76,12 +76,12 @@ Decisões de projeto:
   domínio discreto (1–5), a aplicação traduz "> N" para `WHERE gravidade IN (...)` com os
   níveis acima de N — sem `ALLOW FILTERING`.
 - **Consulta geográfica (sem geo nativo):** conforme autorizado no enunciado, a filtragem é
-  feita **na aplicação**. Puxamos os candidatos da cidade (`eventos_por_cidade`) e
-  calculamos a distância pela fórmula de **Haversine** (`geo.py`), retornando os eventos
-  dentro do raio em km, ordenados por distância.
-  - *Escalabilidade (trabalho futuro):* para milhões de eventos, particionar por **geohash**
-    (ex.: prefixo de ~5 km) e consultar a célula + vizinhas reduziria os candidatos. Mantido
-    fora do escopo por simplicidade; o volume do trabalho (milhares) é tratado sem problema.
+  feita **na aplicação**. A tabela `eventos_por_bairro` usa `bairro` como partition key,
+  distribuindo os dados em 10 partições independentes. A busca por raio opera em três passos:
+  (1) identifica bairros candidatos pelo centro usando `BAIRROS` + Haversine, sem acesso ao
+  banco; (2) consulta no Cassandra apenas as partições dos bairros dentro da margem de raio;
+  (3) aplica Haversine em cada evento retornado para confirmar a distância exata. Resultado:
+  somente o subconjunto geográfico relevante é transferido — não o dataset completo.
 - **Estatísticas com tabelas `counter`:** em vez de `COUNT(*)` (caro e que exige conhecer
   todas as chaves), mantemos contadores atualizados **a cada inserção** — estatísticas em
   tempo real. Counters exigem tabela própria (não se misturam com colunas normais), por isso

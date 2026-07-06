@@ -53,13 +53,14 @@ DDL = [
       reportante_tipo text, reportante_id text,
       PRIMARY KEY ((gravidade), data_hora, id_evento))
       WITH CLUSTERING ORDER BY (data_hora DESC, id_evento ASC)
+      AND default_time_to_live = 31536000
     """,
     """
-    CREATE TABLE IF NOT EXISTS eventos_por_cidade (
-      cidade text, data_hora timestamp, id_evento text, tipo text, descricao text,
-      gravidade int, status text, bairro text, latitude double, longitude double,
+    CREATE TABLE IF NOT EXISTS eventos_por_bairro (
+      bairro text, data_hora timestamp, id_evento text, tipo text, descricao text,
+      gravidade int, status text, cidade text, latitude double, longitude double,
       reportante_tipo text, reportante_id text,
-      PRIMARY KEY ((cidade), data_hora, id_evento))
+      PRIMARY KEY ((bairro), data_hora, id_evento))
       WITH CLUSTERING ORDER BY (data_hora DESC, id_evento ASC)
     """,
     "CREATE TABLE IF NOT EXISTS contagem_por_tipo (tipo text PRIMARY KEY, total counter)",

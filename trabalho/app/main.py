@@ -3,7 +3,7 @@
 Cobre as funcionalidades obrigatorias 6.1 a 6.6. Execute com:
   docker compose exec app python main.py
 """
-import time
+import uuid
 from datetime import datetime
 
 from db import conectar
@@ -79,7 +79,7 @@ def acao_inserir(repo: Repositorio):
     rep_id = input("Identificador do reportante (ex.: USR001): ").strip() or "USR000"
 
     evento = Evento(
-        id_evento=f"EVT{int(time.time())}",
+        id_evento=f"EVT{uuid.uuid4().hex[:12].upper()}",
         tipo=tipo, descricao=descricao, data_hora=datetime.now(),
         gravidade=gravidade, status=status, bairro=bairro, cidade=CIDADE_PADRAO,
         latitude=lat, longitude=lon, reportante_tipo=rep_tipo, reportante_id=rep_id,
@@ -109,7 +109,7 @@ def acao_geografica(repo: Repositorio):
     lat = ler_float("Latitude do ponto")
     lon = ler_float("Longitude do ponto")
     raio = ler_float("Raio (km)")
-    resultados = repo.consultar_geografico(lat, lon, raio, CIDADE_PADRAO)
+    resultados = repo.consultar_geografico(lat, lon, raio)
     print(f"\n{len(resultados)} evento(s) dentro de {raio} km:")
     for dist, r in resultados[:50]:
         print(f"  {dist:5.2f} km [{r.id_evento}] {r.tipo} - {r.bairro} "
